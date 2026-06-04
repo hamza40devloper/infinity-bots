@@ -18,7 +18,7 @@ const validateApiKey = (req, res, next) => {
     next();
 };
 
-// مسار تشغيل البوت (محمي)
+// ⚡ مسار تشغيل البوت (محمي ومعدل لمنع الانهيار الداخلي)
 app.post('/api/start-bot', validateApiKey, (req, res) => {
     const { ip, port, username, version, authCommand, broadcastMessage, broadcastInterval, proxy, discordWebhook } = req.body;
 
@@ -31,11 +31,24 @@ app.post('/api/start-bot', validateApiKey, (req, res) => {
     }
 
     try {
-        // تمرير الإعدادات الجديدة للدالة
-        createBot({ ip, port, username, version, authCommand, broadcastMessage, broadcastInterval, proxy, discordWebhook });
-        res.status(200).json({ message: `تم إرسال أمر التشغيل للبوت ${username}` });
+        // تشغيل البوت وتمرير كافة الخصائص المتقدمة بما فيها البروكسي والويب هوك
+        createBot({ 
+            ip, 
+            port: parseInt(port) || 25565, 
+            username, 
+            version, 
+            authCommand, 
+            broadcastMessage, 
+            broadcastInterval, 
+            proxy, 
+            discordWebhook 
+        });
+
+        // إرجاع استجابة ناجحة فوراً للواجهة لمنع تعليق الطلب (Timeout)
+        res.status(200).json({ message: `تم إرسال أمر التشغيل للبوت ${username} بنجاح وجاري الاتصال...` });
     } catch (error) {
-        res.status(500).json({ error: 'حدث خطأ داخلي في الخادم.' });
+        console.error('[SERVER ERROR]:', error);
+        res.status(500).json({ error: `حدث خطأ داخلي في الخادم أثناء تهيئة Mineflayer: ${error.message}` });
     }
 });
 
@@ -43,31 +56,36 @@ app.post('/api/start-bot', validateApiKey, (req, res) => {
 app.post('/api/stop-bot', validateApiKey, (req, res) => {
     const { username } = req.body;
     if (activeBots && activeBots[username]) {
-        activeBots[username].quit(); // فصل البوت فوراً
+        try {
+            activeBots[username].quit(); // فصل البوت فوراً
+        } catch (e) {
+            console.log(`[!] خطأ أثناء محاولة إغلاق سوكيت البوت: ${e.message}`);
+        }
+        
         delete activeBots[username];
-        if(botsStatus[username]) {
+        if (botsStatus[username]) {
             botsStatus[username].status = '⚫ غير متصل (Offline)';
             botsStatus[username].reason = 'تم إيقافه يدوياً من لوحة التحكم';
-    
         }
         return res.status(200).json({ message: `تم إيقاف البوت ${username} بنجاح.` });
     }
     res.status(404).json({ error: 'البوت غير نشط أو تم إيقافه بالفعل.' });
 });
 
-// مسار جلب الحالة الحية والشات والإحداثيات (عام للواجهة)
+// 📊 مسار جلب الحالة الحية والشات والإحداثيات (عام للواجهة)
 app.get('/api/status/:username', (req, res) => {
     const username = req.params.username;
-    const status = botsStatus[username] || { status: 'مجهول', reason: 'البوت لم يبدأ بعد', coords: {x:0,y:0,z:0}, chatLogs: [] };
-    res.json(status); // تم تصحيح الخطأ المطبعي هنا
+    const status = botsStatus[username] || { 
+        status: 'مجهول', 
+        reason: 'البوت لم يبدأ بعد أو تم حذفه من الذاكرة', 
+        coords: { x: 0, y: 0, z: 0 }, 
+        chatLogs: [] 
+    };
+    res.status(200).json(status);
 });
 
-// مسار جديد لجلب قائمة بكل البوتات النشطة حالياً في الخادم
-app.get('/api/active-bots', (req, res) => {
-    res.status(200).json(Object.keys(botsStatus));
-});
-
+// تشغيل السيرفر على المنفذ المحدد بواسطة Railway أو المنفذ المحلي 3000
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`[+] السيرفر يعمل بامتياز على المنفذ ${PORT}`);
+    console.log(`[+] Server is running perfectly on port ${PORT}`);
 });
