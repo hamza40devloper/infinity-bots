@@ -1,113 +1,101 @@
 const mineflayer = require('mineflayer');
-const { SocksClient } = require('socks');
-const axios = require('axios');
 
+// كائنات تخزين البيانات الحية في ذاكرة السيرفر
 const botsStatus = {};
 const activeBots = {}; 
 const broadcastIntervals = {}; 
-const afkIntervals = {}; // لتخزين موقتات الحركة التلقائية
 
-// دالة إرسال تنبيهات ديسكورد
-function sendDiscordAlert(webhookUrl, username, status, reason = "") {
-    if (!webhookUrl) return; // تجاهل إذا لم يضع المستخدم رابط الويب هوك
-
-    const color = status === '🟢 متصل (Online)' ? 65280 : 16711680; // أخضر للاتصال، أحمر للفصل
-    const embed = {
-        title: `🤖 تحديث حالة العميل: ${username}`,
-        color: color,
-        fields: [{ name: "الحالة", value: status, inline: true }],
-        timestamp: new Date().toISOString()
-    };
-
-    if (reason) embed.fields.push({ name: "السبب / التفاصيل", value: reason, inline: false });
-
-    axios.post(webhookUrl, { embeds: [embed] }).catch(() => {
-        console.log(`[!] فشل إرسال تنبيه الديسكورد للبوت ${username}`);
-    });
-}
-
+/**
+ * دالة إنشاء وتشغيل البوت بـ ماين كرافت مع معالجة ذكية للأخطاء والبروكسي
+ */
 function createBot(options, retries = 0) {
-    if (activeBots[options.username] && botsStatus[options.username].status === '🟢 متصل (Online)') {
+    const maxRetries = 5;
+    const username = options.username;
+
+    if (activeBots[username] && botsStatus[username].status === '🟢 متصل (Online)') {
+        console.log(`[!] البوت ${username} متصل بالفعل.`);
         return;
     }
 
-    const maxRetries = 5;
-    botsStatus[options.username] = { 
+    // تهيئة هيكل الحالة الحية في الذاكرة لمنع أخطاء القراءة من الواجهة
+    botsStatus[username] = { 
         status: '⏳ جاري الاتصال...', 
-        reason: options.proxy ? 'عبر البروكسي' : 'اتصال مباشر',
+        reason: 'يتم الآن فتح سوكيت الاتصال بسيرفر ماين كرافت',
         coords: { x: 0, y: 0, z: 0 },
         chatLogs: [] 
     };
 
-    let botConfig = {
+    // 🔧 إصلاح خطأ الإصدار: إذا كانت القيمة المرسلة false كـ string أو غير موجودة، نجعلها false كـ Boolean لتفعيل الكشف التلقائي
+    let parsedVersion = options.version;
+    if (parsedVersion === 'false' || !parsedVersion) {
+        parsedVersion = false; 
+    }
+
+    // إعدادات إنشاء البوت الأساسية
+    const botOptions = {
         host: options.ip,
         port: parseInt(options.port) || 25565,
-        username: options.username,
-        version: options.version || false,
-        hideErrors: true
+        username: username,
+        version: parsedVersion
     };
 
-    // 🌐 [1] تفعيل نظام الوكلاء (Proxies) إذا تم توفيرها
-    if (options.proxy) {
+    // دمج إعدادات البروكسي (Proxy) إذا تم تمريرها بشكل صحيح من واجهة بلوجر
+    if (options.proxy && options.proxy.trim() !== "") {
         const proxyParts = options.proxy.split(':');
         if (proxyParts.length === 2) {
-            botConfig.connect = client => {
-                SocksClient.createConnection({
-                    proxy: { host: proxyParts[0], port: parseInt(proxyParts[1]), type: 5 },
-                    command: 'connect',
-                    destination: { host: options.ip, port: botConfig.port }
-                }, (err, info) => {
-                    if (err) {
-                        botsStatus[options.username].status = '❌ خطأ في البروكسي';
-                        botsStatus[options.username].reason = err.message;
-                        return;
-                    }
-                    client.setSocket(info.socket);
-                    client.emit('connect');
-                });
+            botOptions.proxy = {
+                host: proxyParts[0].trim(),
+                port: parseInt(proxyParts[1])
             };
+            console.log(`[Proxy] تفعيل نفق SOCKS5 للبوت ${username} عبر: ${options.proxy}`);
         }
     }
 
-    const bot = mineflayer.createBot(botConfig);
-    activeBots[options.username] = bot;
+    console.log(`[~] جاري محاولة حقن البوت ${username} في الإصدار: ${parsedVersion || 'Auto-Detect'}`);
 
+    let bot;
+    try {
+        bot = mineflayer.createBot(botOptions);
+        activeBots[username] = bot;
+    } catch (initError) {
+        console.error(`[-] فشل كلي أثناء تهيئة كائن Mineflayer:`, initError.message);
+        botsStatus[username].status = '❌ خطأ في التهيئة';
+        botsStatus[username].reason = initError.message;
+        return;
+    }
+
+    // حدث الدخول الناجح وعمل الـ Spawn داخل العالم
     bot.on('spawn', () => {
-        console.log(`[+] البوت ${options.username} دخل السيرفر.`);
-        botsStatus[options.username].status = '🟢 متصل (Online)';
-        botsStatus[options.username].reason = 'يعمل بشكل سليم';
-        retries = 0;
+        console.log(`[+] البوت ${username} استقر داخل العالم بنجاح.`);
+        botsStatus[username].status = '🟢 متصل (Online)';
+        botsStatus[username].reason = 'يعمل بكفاءة عالية داخل السيرفر';
+        retries = 0; // تصفير العداد عند نجاح الاتصال
 
-        sendDiscordAlert(options.discordWebhook, options.username, '🟢 متصل (Online)', `تم الدخول بنجاح إلى السيرفر ${options.ip}`);
-
-        if (options.authCommand) {
-            setTimeout(() => bot.chat(options.authCommand), 2000);
+        // تنفيذ أمر التسجيل التلقائي AuthCommand
+        if (options.authCommand && options.authCommand.trim() !== "") {
+            setTimeout(() => {
+                bot.chat(options.authCommand);
+                console.log(`[Auth] تم إرسال أمر الدخول للبوت ${username}`);
+            }, 2000);
         }
 
-        if (options.broadcastMessage && options.broadcastInterval) {
-            if (broadcastIntervals[options.username]) clearInterval(broadcastIntervals[options.username]);
-            const intervalMs = parseInt(options.broadcastInterval) * 1000;
-            broadcastIntervals[options.username] = setInterval(() => {
-                if (activeBots[options.username]) bot.chat(options.broadcastMessage);
-            }, intervalMs);
+        // إعداد البث الدوري للإعلانات والرسائل التلقائية (Anti-AFK Broadcast)
+        if (options.broadcastMessage && options.broadcastMessage.trim() !== "") {
+            if (broadcastIntervals[username]) clearInterval(broadcastIntervals[username]);
+            
+            const intervalTime = (parseInt(options.broadcastInterval) || 30) * 1000;
+            broadcastIntervals[username] = setInterval(() => {
+                if (activeBots[username]) {
+                    bot.chat(options.broadcastMessage);
+                }
+            }, intervalTime);
         }
-
-        // 🛡️ [2] تفعيل نظام Anti-AFK الآمن (الالتفاف والقفز كل 30 ثانية)
-        if (afkIntervals[options.username]) clearInterval(afkIntervals[options.username]);
-        afkIntervals[options.username] = setInterval(() => {
-            if (activeBots[options.username]) {
-                const yaw = Math.random() * Math.PI * 2;
-                const pitch = (Math.random() * Math.PI) - (Math.PI / 2);
-                bot.look(yaw, pitch, true);
-                bot.setControlState('jump', true);
-                setTimeout(() => bot.setControlState('jump', false), 500);
-            }
-        }, 30000);
     });
 
+    // تحديث الإحداثيات الحية للبوت وإرسالها للواجهة فور تحركه
     bot.on('move', () => {
         if (bot.entity && bot.entity.position) {
-            botsStatus[options.username].coords = {
+            botsStatus[username].coords = {
                 x: Math.round(bot.entity.position.x),
                 y: Math.round(bot.entity.position.y),
                 z: Math.round(bot.entity.position.z)
@@ -115,56 +103,60 @@ function createBot(options, retries = 0) {
         }
     });
 
-    bot.on('message', (jsonMsg) => {
-        const plainText = jsonMsg.toString().trim();
-        if (plainText) {
-            const logs = botsStatus[options.username].chatLogs;
-            logs.push(plainText);
-            if (logs.length > 15) logs.shift();
+    // استقبال الشات الحي وحفظ السجلات لعرضها في الـ Matrix Logs ببلوجر
+    bot.on('chat', (usernameFromChat, message) => {
+        const cleanMsg = `<${usernameFromChat}> ${message}`;
+        if (botsStatus[username].chatLogs.length > 50) {
+            botsStatus[username].chatLogs.shift(); // حذف السجلات القديمة لتوفير الذاكرة
         }
+        botsStatus[username].chatLogs.push(cleanMsg);
     });
 
-    function cleanUpBot(username) {
-        delete activeBots[username];
-        if (broadcastIntervals[username]) clearInterval(broadcastIntervals[username]);
-        if (afkIntervals[username]) clearInterval(afkIntervals[username]);
+    // تنظيف الذاكرة عند انتهاء الجلسة أو الطرد
+    function cleanUpBot(bName) {
+        if (activeBots[bName]) delete activeBots[bName];
+        if (broadcastIntervals[bName]) {
+            clearInterval(broadcastIntervals[bName]);
+            delete broadcastIntervals[bName];
+        }
     }
 
+    // التعامل الآمن مع الطرد من السيرفر (Kicked)
     bot.on('kicked', (reason) => {
         let kickReason = typeof reason === 'object' ? JSON.stringify(reason) : String(reason);
-        botsStatus[options.username].status = '🔴 تم الطرد (Kicked)';
-        botsStatus[options.username].reason = kickReason;
-        sendDiscordAlert(options.discordWebhook, options.username, '🔴 تم الطرد', kickReason);
-        cleanUpBot(options.username);
+        console.log(`[-] البوت ${username} تم طرده. السبب: ${kickReason}`);
+        botsStatus[username].status = '🔴 تم الطرد (Kicked)';
+        botsStatus[username].reason = kickReason;
+        cleanUpBot(username);
     });
 
+    // التعامل مع انتهاء الاتصال وإعادة المحاولة الذكية (Reconnection Loop)
     bot.on('end', (reason) => {
         let endReason = String(reason);
-        cleanUpBot(options.username);
+        console.log(`[!] انتهى اتصال البوت ${username}. السبب الحالي: ${endReason}`);
+        cleanUpBot(username);
         
-        if (botsStatus[options.username].status !== '🔴 تم الطرد (Kicked)') {
-            botsStatus[options.username].status = '⚫ غير متصل (Offline)';
-            botsStatus[options.username].reason = endReason;
-            sendDiscordAlert(options.discordWebhook, options.username, '⚫ غير متصل', endReason);
+        if (botsStatus[username].status !== '🔴 تم الطرد (Kicked)') {
+            botsStatus[username].status = '⚫ غير متصل (Offline)';
+            botsStatus[username].reason = `تم فصل الاتصال (${endReason}). جاري إعادة المحاولة...`;
 
-            // إعادة الاتصال التلقائي
             if (retries < maxRetries) {
-                const delay = 15000 + (retries * 5000);
+                const delay = 10000 + (retries * 5000); // وقت انتظار ديناميكي يتصاعد تدريجياً
                 setTimeout(() => createBot(options, retries + 1), delay);
             } else {
-                botsStatus[options.username].status = '❌ تم الإيقاف';
-                botsStatus[options.username].reason = 'تم تجاوز حد المحاولات';
+                botsStatus[username].status = '❌ فشل الاتصال النهائي';
+                botsStatus[username].reason = 'تم استنفاد جميع محاولات الاتصال بالسيرفر، تأكد من الـ IP';
             }
         }
     });
 
+    // 🛡️ صمام الأمان الأهم: منع انهيار السيرفر الخلفي بالكامل عند حدوث أخطاء شبكية عشوائية
     bot.on('error', (err) => {
-        botsStatus[options.username].status = '❌ خطأ برمجي';
-        botsStatus[options.username].reason = err.message;
-        cleanUpBot(options.username);
+        console.error(`[Mineflayer Error - ${username}]:`, err.message);
+        botsStatus[username].status = '❌ خطأ في الاتصال';
+        botsStatus[username].reason = `خطأ شبكي داخلي: ${err.message}`;
+        cleanUpBot(username);
     });
-
-    return bot;
 }
 
 module.exports = { createBot, botsStatus, activeBots };
