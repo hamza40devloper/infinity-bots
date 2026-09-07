@@ -1,0 +1,138 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>MC Keepalive — Frontend</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body{font-family:Inter,Arial,Helvetica,sans-serif;padding:16px;background:#f6f7fb}
+    label{display:block;margin:8px 0}
+    input,select,button{padding:8px;margin-right:8px}
+    #console{background:#0b0b0b;color:#e6e6e6;padding:12px;height:320px;overflow:auto;white-space:pre-wrap;border-radius:6px}
+    .row{display:flex;gap:8px;align-items:center}
+    header{display:flex;justify-content:space-between;align-items:center}
+  </style>
+</head>
+<body>
+  <header>
+    <h2>KeepAliveMC</h2>
+    <div>Owner-only tool</div>
+  </header>
+
+  <div style="max-width:900px">
+    <label>Server IP:
+      <input id="ip" placeholder="play.example.com" />
+    </label>
+    <label>Port:
+      <input id="port" value="25565" />
+    </label>
+    <label>Version:
+      <select id="version">
+        <!-- اختصرنا؛ أضف باقي الإصدارات حسب الحاجة -->
+        <option>1.8.9</option>
+        <option>1.12.2</option>
+        <option>1.16.5</option>
+        <option>1.18.2</option>
+        <option>1.20.4</option>
+        <option selected>1.20.4</option>
+      </select>
+    </label>
+    <label>Username (optional): <input id="username" placeholder="bot-01" /></label>
+
+    <div class="row" style="margin-top:10px">
+      <button id="sendBtn">Send</button>
+      <button id="stopBtn" disabled>Stop</button>
+      <input id="apiKey" placeholder="x-api-key" style="width:240px" />
+    </div>
+
+    <h3>Console</h3>
+    <div id="console">not connected</div>
+
+    <div style="margin-top:8px" class="row">
+      <input id="cmd" placeholder="type message or /command" style="flex:1" />
+      <button id="sendMsg">Send</button>
+    </div>
+  </div>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+  const API_BASE = 'YOUR_BACKEND_URL'; // <-- استبدل هذا بعد نشر backend
+
+  const sendBtn = document.getElementById('sendBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const consoleEl = document.getElementById('console');
+  const sendMsg = document.getElementById('sendMsg');
+  let sessionId = null;
+  let socket = null;
+
+  function log(x){
+    consoleEl.textContent += '\\n' + x;
+    consoleEl.scrollTop = consoleEl.scrollHeight;
+  }
+
+  sendBtn.onclick = async () => {
+    const ip = document.getElementById('ip').value.trim();
+    const port = parseInt(document.getElementById('port').value);
+    const version = document.getElementById('version').value;
+    const username = document.getElementById('username').value || null;
+    const key = document.getElementById('apiKey').value.trim();
+    if (!ip || !key) return alert('IP و API key مطلوبان');
+
+    try {
+      const res = await fetch(API_BASE + '/api/spawn', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','x-api-key': key},
+        body: JSON.stringify({ host: ip, port, version, username })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert('Error: ' + (err.error || res.statusText));
+        return;
+      }
+      const j = await res.json();
+      sessionId = j.sessionId;
+      log('[system] started session ' + sessionId);
+      setupSocket(sessionId);
+      sendBtn.disabled = true;
+      stopBtn.disabled = false;
+    } catch (e) {
+      alert('طلب فشل: ' + e.message);
+    }
+  };
+
+  stopBtn.onclick = async () => {
+    const key = document.getElementById('apiKey').value.trim();
+    if (!sessionId) return;
+    try {
+      await fetch(API_BASE + '/api/stop/' + sessionId, { method: 'POST', headers:{'x-api-key': key} });
+      log('[system] stopped session ' + sessionId);
+    } catch (e) {
+      log('[system] stop error: ' + e.message);
+    }
+    if (socket) socket.disconnect();
+    sessionId = null;
+    sendBtn.disabled = false;
+    stopBtn.disabled = true;
+  };
+
+  function setupSocket(id) {
+    // اتصل مباشرة ب namespace على backend: مثال: https://mc-bots.onrender.com/session-<id>
+    const backendSocketBase = API_BASE.replace(/^http/, 'ws');
+    // أفضل: اتصل بالـnamespace الكامل (مباشرة):
+    socket = io(API_BASE + '/session-' + id, { transports: ['websocket'] });
+
+    socket.on('connect', () => log('[socket] connected'));
+    socket.on('log', (m)=> log(m));
+    socket.on('chat', (obj)=> log(`[chat] ${obj.from}: ${obj.text}`));
+    socket.on('disconnect', ()=> log('[socket] disconnected'));
+  }
+
+  sendMsg.onclick = () => {
+    const msg = document.getElementById('cmd').value;
+    if (!socket) return alert('غير متصل');
+    socket.emit('send', msg);
+    document.getElementById('cmd').value = '';
+  };
+</script>
+</body>
+</html>
