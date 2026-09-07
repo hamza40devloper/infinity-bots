@@ -1,6 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  KeepAliveMC v2.1 - Anti-Kick Enhanced Edition
-//  إصلاح مشكلة طرد البوت بعد 3 دقائق
+//  KeepAliveMC v2.1 - Anti-Kick Enhanced Edition (FIXED)
 // ═══════════════════════════════════════════════════════════
 
 const express = require('express');
@@ -15,12 +14,10 @@ const mineflayer = require('mineflayer');
 const PORT = process.env.PORT || 3000;
 const MAX_SESSIONS = 10;
 const MAX_SESSIONS_PER_IP = 3;
-const CLEANUP_CHECK_INTERVAL = 60 * 1000;       // فحص كل 60 ثانية
-const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;    // 24 ساعة
-const RECONNECT_MAX_ATTEMPTS = 15;               // زيادة المحاولات
-const RECONNECT_BASE_DELAY = 10000;              // 10 ثواني بين المحاولات
-
-// Anti-AFK - كل 30 ثانية (مهم جداً!)
+const CLEANUP_CHECK_INTERVAL = 60 * 1000;
+const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
+const RECONNECT_MAX_ATTEMPTS = 15;
+const RECONNECT_BASE_DELAY = 10000;
 const ANTI_AFK_INTERVAL = 30 * 1000;
 
 // ═══════════════ تخزين ═══════════════
@@ -70,8 +67,12 @@ const SUPPORTED_VERSIONS = [
 function log(msg, type = 'info') {
   const timestamp = new Date().toLocaleTimeString();
   const colors = {
-    info: '\x1b[36m', success: '\x1b[32m', warn: '\x1b[33m',
-    error: '\x1b[31m', cleanup: '\x1b[35m', anti-afk: '\x1b[90m'
+    info: '\x1b[36m',
+    success: '\x1b[32m',
+    warn: '\x1b[33m',
+    error: '\x1b[31m',
+    cleanup: '\x1b[35m',
+    antiafk: '\x1b[90m'
   };
   console.log(`${colors[type] || ''}[${timestamp}] ${msg}\x1b[0m`);
   io.emit('server-log', { timestamp, message: msg, type });
@@ -109,45 +110,42 @@ async function checkServerAlive(host, port) {
   });
 }
 
-// ═══════════════ ⭐ ANTI-AFK المحسّن ⭐ ═══════════════
-// هذا هو الإصلاح الرئيسي - حركة كل 30 ثانية بدلاً من 3 دقائق
+// ═══════════════ ANTI-AFK المحسّن ═══════════════
 function startAntiAFK(session) {
   const { bot, id } = session;
   
   const antiAfkInterval = setInterval(() => {
-    // التحقق من أن البوت ما زال حياً
     if (!sessions.has(id) || !session.bot || session.state === 'end') {
       clearInterval(antiAfkInterval);
       return;
     }
 
     try {
-      // حركة عشوائية واقعية
       const moveType = Math.floor(Math.random() * 5);
 
       switch (moveType) {
-        case 0: // قفز
+        case 0:
           bot.setControlState('jump', true);
           setTimeout(() => { try { bot.setControlState('jump', false); } catch(e){} }, 300);
           break;
 
-        case 1: // المشي للأمام قليلاً
+        case 1:
           bot.setControlState('forward', true);
           setTimeout(() => { try { bot.setControlState('forward', false); } catch(e){} }, 500);
           break;
 
-        case 2: // الالتفات
+        case 2:
           const yaw = Math.random() * Math.PI * 2;
           const pitch = (Math.random() - 0.5) * 1.0;
           bot.look(yaw, pitch, true);
           break;
 
-        case 3: // التخفي (sneak)
+        case 3:
           bot.setControlState('sneak', true);
           setTimeout(() => { try { bot.setControlState('sneak', false); } catch(e){} }, 1000);
           break;
 
-        case 4: // قفز + التفات معاً
+        case 4:
           bot.setControlState('jump', true);
           const newYaw = Math.random() * Math.PI * 2;
           bot.look(newYaw, 0, true);
@@ -155,40 +153,32 @@ function startAntiAFK(session) {
           break;
       }
 
-      // إرسال حركة (packet) إضافية للتأكيد
-      if (bot._client && bot._client.state === 'play') {
-        // تجاهل - mineflayer يرسل تلقائياً
-      }
-
-      log(`🤖 Anti-AFK: ${session.username} → ${['jump','walk','look','sneak','jump+look'][moveType]}`, 'anti-afk');
+      log(`🤖 Anti-AFK: ${session.username} → ${['jump','walk','look','sneak','jump+look'][moveType]}`, 'antiafk');
 
     } catch (err) {
-      // البوت قد يكون مات - تجاهل
+      // تجاهل
     }
-  }, ANTI_AFK_INTERVAL); // كل 30 ثانية!
+  }, ANTI_AFK_INTERVAL);
 
   return antiAfkInterval;
 }
 
-// ═══════════════ ⭐ التنظيف الذكي ⭐ ═══════════════
+// ═══════════════ التنظيف الذكي ═══════════════
 async function cleanupSession(sessionId, reason = 'unknown') {
   const session = sessions.get(sessionId);
   if (!session) return;
 
   try {
-    // إيقاف Anti-AFK
     if (session.antiAfkInterval) {
       clearInterval(session.antiAfkInterval);
       session.antiAfkInterval = null;
     }
 
-    // إيقاف reconnect timer
     if (session.reconnectTimer) {
       clearTimeout(session.reconnectTimer);
       session.reconnectTimer = null;
     }
 
-    // إنهاء البوت
     if (session.bot) {
       try {
         session.bot.removeAllListeners();
@@ -198,10 +188,8 @@ async function cleanupSession(sessionId, reason = 'unknown') {
       session.bot = null;
     }
 
-    // حذف من الذاكرة
     sessions.delete(sessionId);
 
-    // تحديث عداد IP
     if (session.ip && ipSessionCount.has(session.ip)) {
       const count = ipSessionCount.get(session.ip);
       if (count <= 1) ipSessionCount.delete(session.ip);
@@ -224,8 +212,8 @@ async function cleanupSession(sessionId, reason = 'unknown') {
       sessionId,
       reason,
       message: reason === 'server-offline'
-        ? `تم حذف الجلسة تلقائياً - الخادم غير متصل`
-        : `تم حذف الجلسة`
+        ? `Auto-cleaned: Server offline`
+        : `Session removed`
     });
 
     broadcastStats();
@@ -240,20 +228,17 @@ async function runCleanupCheck() {
 
   for (const [sessionId, session] of [...sessions.entries()]) {
     try {
-      // فحص انتهاء الوقت
       if (Date.now() - session.startTime > SESSION_TIMEOUT) {
         await cleanupSession(sessionId, 'timeout');
         continue;
       }
 
-      // فحص اتصال الخادم
       const alive = await checkServerAlive(session.host, session.port);
       if (!alive) {
         await cleanupSession(sessionId, 'server-offline');
         continue;
       }
 
-      // تحديث إحصائيات
       if (session.bot && session.state !== 'end') {
         io.emit('session-stats', {
           sessionId,
@@ -275,7 +260,7 @@ async function runCleanupCheck() {
 
 setInterval(runCleanupCheck, CLEANUP_CHECK_INTERVAL);
 
-// ═══════════════ ⭐ إعادة الاتصال المحسّنة ⭐ ═══════════════
+// ═══════════════ إعادة الاتصال المحسّنة ═══════════════
 function attemptReconnect(sessionId) {
   const session = sessions.get(sessionId);
   if (!session) return;
@@ -283,12 +268,11 @@ function attemptReconnect(sessionId) {
   session.reconnectAttempts = (session.reconnectAttempts || 0) + 1;
 
   if (session.reconnectAttempts > RECONNECT_MAX_ATTEMPTS) {
-    log(`❌ Session ${sessionId}: Max reconnects (${RECONNECT_MAX_ATTEMPTS}) reached`, 'error');
+    log(`❌ Session ${sessionId}: Max reconnects reached`, 'error');
     cleanupSession(sessionId, 'max-reconnects');
     return;
   }
 
-  // تأخير متزايد: 10s, 20s, 30s, 40s... حتى 60s
   const delay = Math.min(RECONNECT_BASE_DELAY * session.reconnectAttempts, 60000);
   
   log(`🔄 Reconnect ${session.reconnectAttempts}/${RECONNECT_MAX_ATTEMPTS} in ${delay/1000}s...`, 'warn');
@@ -296,15 +280,14 @@ function attemptReconnect(sessionId) {
   io.emit('bot-status', {
     sessionId,
     status: 'reconnecting',
-    message: `إعادة اتصال (${session.reconnectAttempts}/${RECONNECT_MAX_ATTEMPTS}) بعد ${delay/1000} ثانية`
+    message: `Reconnecting (${session.reconnectAttempts}/${RECONNECT_MAX_ATTEMPTS}) in ${delay/1000}s`
   });
 
   session.reconnectTimer = setTimeout(async () => {
-    if (!sessions.has(sessionId)) return; // تم حذفها
+    if (!sessions.has(sessionId)) return;
 
     const alive = await checkServerAlive(session.host, session.port);
     if (!alive) {
-      // الخادم مات - لا تعيد المحاولة
       cleanupSession(sessionId, 'server-offline');
       return;
     }
@@ -313,7 +296,7 @@ function attemptReconnect(sessionId) {
   }, delay);
 }
 
-// ═══════════════ ⭐ إنشاء البوت المحسّن ⭐ ═══════════════
+// ═══════════════ إنشاء البوت ═══════════════
 function createBotSession(sessionId, session) {
   try {
     log(`🤖 Creating bot: ${session.username} → ${session.host}:${session.port} (v${session.version})`, 'info');
@@ -326,15 +309,13 @@ function createBotSession(sessionId, session) {
       auth: 'offline',
       hideErrors: true,
       checkTimeoutInterval: 30 * 1000,
-      keepAlive: true,           // مهم! إبقاء الاتصال حي
-      respawn: true,             // إعادة الظهور تلقائياً عند الموت
-      defaultChatPatterns: false // لا ترسل رسائل تلقائية
+      keepAlive: true,
+      respawn: true,
+      defaultChatPatterns: false
     });
 
     session.bot = bot;
     session.state = 'connecting';
-
-    // ═════ أحداث البوت ═════
 
     bot.on('login', () => {
       session.state = 'connected';
@@ -343,10 +324,9 @@ function createBotSession(sessionId, session) {
       
       io.emit('bot-status', {
         sessionId, status: 'connected',
-        message: `البوت ${session.username} متصل بنجاح!`
+        message: `Bot ${session.username} connected!`
       });
 
-      // ⭐ بدء Anti-AFK فوراً بعد الاتصال
       session.antiAfkInterval = startAntiAFK(session);
     });
 
@@ -356,16 +336,14 @@ function createBotSession(sessionId, session) {
       
       io.emit('bot-status', {
         sessionId, status: 'spawned',
-        message: `البوت ${session.username} ظهر في العالم!`
+        message: `Bot ${session.username} spawned!`
       });
 
-      // ⭐ تأكد من Anti-AFK يعمل
       if (!session.antiAfkInterval) {
         session.antiAfkInterval = startAntiAFK(session);
       }
     });
 
-    // ⭐ مراقبة رسائل الخادم لاكتشاف الطرد
     bot.on('message', (message) => {
       const text = message.toString();
       
@@ -375,17 +353,227 @@ function createBotSession(sessionId, session) {
         timestamp: new Date().toLocaleTimeString()
       });
 
-      // ⭐ اكتشاف رسائل الطرد
       const kickKeywords = [
         'kicked', 'banned', 'You are AFK', 'idle', 'timeout',
-        'moved too quickly', 'flying is not enabled', 'You died'
+        'moved too quickly', 'flying is not enabled'
       ];
       
       const lowerText = text.toLowerCase();
       if (kickKeywords.some(kw => lowerText.includes(kw))) {
-        log(`⚠️ Kick detected: ${text}`, 'warn');
+        log(`⚠️ Kick warning: ${text}`, 'warn');
       }
     });
 
     bot.on('health', () => {
-      // ⭐ إذا كانت الصحة منخفضة، تحرك للب
+      if (bot.health < 6 && bot.food > 0) {
+        const yaw = Math.random() * Math.PI * 2;
+        bot.look(yaw, 0, true);
+      }
+    });
+
+    bot.on('kicked', (reason) => {
+      log(`⚠️ ${session.username} KICKED: ${reason}`, 'warn');
+      session.state = 'kicked';
+      
+      io.emit('bot-status', {
+        sessionId, status: 'kicked',
+        message: `Bot kicked: ${reason.substring(0, 100)}`
+      });
+    });
+
+    bot.on('error', (err) => {
+      log(`❌ Bot error: ${err.message}`, 'error');
+      session.state = 'error';
+    });
+
+    bot.on('end', (reason) => {
+      log(`🔌 ${session.username} disconnected: ${reason || 'unknown'}`, 'warn');
+      session.state = 'disconnected';
+
+      if (session.antiAfkInterval) {
+        clearInterval(session.antiAfkInterval);
+        session.antiAfkInterval = null;
+      }
+
+      if (sessions.has(sessionId)) {
+        attemptReconnect(sessionId);
+      }
+    });
+
+    bot.on('time', () => {
+      if (bot.player?.ping) {
+        session.ping = bot.player.ping;
+      }
+    });
+
+  } catch (err) {
+    log(`Failed to create bot: ${err.message}`, 'error');
+    session.state = 'error';
+  }
+}
+
+// ═══════════════ API ═══════════════
+
+app.post('/api/spawn', async (req, res) => {
+  const clientIP = getClientIP(req);
+  const { host, port, version, username } = req.body;
+
+  if (!host?.trim()) return res.status(400).json({ error: 'Server address required' });
+  if (!port || port < 1 || port > 65535) return res.status(400).json({ error: 'Valid port required' });
+  if (!version || !SUPPORTED_VERSIONS.includes(version)) {
+    return res.status(400).json({ error: 'Version not supported' });
+  }
+
+  if (sessions.size >= MAX_SESSIONS) {
+    return res.status(429).json({ error: `Server full (${MAX_SESSIONS} max)` });
+  }
+
+  const userCount = ipSessionCount.get(clientIP) || 0;
+  if (userCount >= MAX_SESSIONS_PER_IP) {
+    return res.status(429).json({ error: `Max ${MAX_SESSIONS_PER_IP} sessions per user` });
+  }
+
+  const alive = await checkServerAlive(host.trim(), parseInt(port));
+  if (!alive) {
+    return res.status(400).json({ error: `Server ${host}:${port} is offline` });
+  }
+
+  const sessionId = generateSessionId();
+  const botUsername = (username?.trim() || `Bot${Math.floor(Math.random() * 9999)}`).substring(0, 16);
+
+  const session = {
+    id: sessionId,
+    host: host.trim(),
+    port: parseInt(port),
+    version,
+    username: botUsername,
+    ip: clientIP,
+    startTime: Date.now(),
+    state: 'starting',
+    bot: null,
+    reconnectAttempts: 0,
+    antiAfkInterval: null,
+    reconnectTimer: null,
+    ping: 0
+  };
+
+  sessions.set(sessionId, session);
+  ipSessionCount.set(clientIP, userCount + 1);
+  totalSpawns++;
+
+  createBotSession(sessionId, session);
+
+  log(`➕ New: ${botUsername} → ${host}:${port}`, 'success');
+  broadcastStats();
+
+  res.json({
+    success: true,
+    sessionId,
+    host: session.host,
+    port: session.port,
+    version,
+    username: botUsername,
+    autoCleanup: true,
+    antiAfk: '30s interval',
+    message: 'Bot launched with enhanced Anti-AFK!'
+  });
+});
+
+app.post('/api/stop/:sessionId', async (req, res) => {
+  if (!sessions.has(req.params.sessionId)) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  await cleanupSession(req.params.sessionId, 'manual');
+  res.json({ success: true, message: 'Stopped' });
+});
+
+app.get('/api/sessions', (req, res) => {
+  const clientIP = getClientIP(req);
+  const list = [...sessions.values()].map(s => ({
+    id: s.id,
+    host: s.host,
+    port: s.port,
+    version: s.version,
+    username: s.username,
+    state: s.state,
+    uptime: Date.now() - s.startTime,
+    uptimeFormatted: formatUptime(Date.now() - s.startTime),
+    isOwner: s.ip === clientIP,
+    ping: s.ping || 0
+  }));
+  res.json(list);
+});
+
+app.get('/api/stats', (req, res) => {
+  res.json({
+    activeSessions: sessions.size,
+    maxSessions: MAX_SESSIONS,
+    totalSpawns,
+    totalCleanups,
+    memoryUsage: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+    uptime: Math.floor(process.uptime())
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy', sessions: sessions.size, autoCleanup: true });
+});
+
+app.get('/api/versions', (req, res) => {
+  res.json(SUPPORTED_VERSIONS);
+});
+
+// ═══════════════ إرسال الإحصائيات ═══════════════
+function broadcastStats() {
+  io.emit('stats-update', {
+    activeSessions: sessions.size,
+    maxSessions: MAX_SESSIONS,
+    totalSpawns,
+    totalCleanups,
+    memoryUsage: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
+  });
+}
+
+setInterval(broadcastStats, 10000);
+
+// ═══════════════ WebSocket ═══════════════
+io.on('connection', (socket) => {
+  broadcastStats();
+
+  socket.on('send-command', (data) => {
+    const session = sessions.get(data.sessionId);
+    if (session?.bot && session.state !== 'end') {
+      try {
+        session.bot.chat(data.command);
+        log(`💬 ${session.username}: ${data.command}`, 'info');
+      } catch (err) {
+        socket.emit('bot-chat', {
+          sessionId: data.sessionId,
+          message: `Error: ${err.message}`
+        });
+      }
+    }
+  });
+});
+
+// ═══════════════ الإغلاق الآمن ═══════════════
+process.on('SIGTERM', async () => {
+  for (const [id] of sessions) await cleanupSession(id, 'shutdown');
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  for (const [id] of sessions) await cleanupSession(id, 'shutdown');
+  process.exit(0);
+});
+
+// ═══════════════ البدء ═══════════════
+server.listen(PORT, () => {
+  log('═══════════════════════════════════════', 'success');
+  log('  🚀 KeepAliveMC v2.1 Enhanced!', 'success');
+  log(`  📡 Port: ${PORT}`, 'info');
+  log(`  🤖 Anti-AFK: Every ${ANTI_AFK_INTERVAL/1000}s`, 'success');
+  log(`  🔄 Max Reconnects: ${RECONNECT_MAX_ATTEMPTS}`, 'info');
+  log(`  🔓 Public Access: YES`, 'success');
+  log('═══════════════════════════════════════', 'success');
+});
