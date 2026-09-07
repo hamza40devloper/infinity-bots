@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KeepAliveMC v2.0 - Free Minecraft Bot Service</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: #1a2332;
+            --bg-input: #0d1420;
+            --bg-hover: #1f2b3d;
+            --border: #2a3a4e;
+            --border-hover: #3d5a80;
+            --text-primary: #e8edf4;
+            --text-secondary: #8899aa;
+            --text-muted: #556677;
+            --accent: #4f9cf9;
+            --accent-hover: #3d8ce9;
+            --accent-glow: rgba(79, 156, 249, 0.15);
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.15);
+            --danger: #ef4444;
+            --danger-glow: rgba(239, 68, 68, 0.15);
+            --warning: #f59e0b;
+            --warning-glow: rgba(245, 158, 11, 0.15);
+            --purple: #8b5cf6;
+            --purple-glow: rgba(139, 92, 246, 0.15);
+            --gradient-primary: linear-gradient(135deg, #4f9cf9 0%, #8b5cf6 100%);
+            --gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            --gradient-danger: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --radius-xl: 20px;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+            --shadow-lg: 0 8px 30px rgba(0,0,0,0.5);
+            --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* ═══ Background Animation ═══ */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(ellipse at 20% 50%, rgba(79, 156, 249, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 80%, rgba(16, 185, 129, 0.04) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ═══ Header ═══ */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 40px 20px;
+            background: linear-gradient(180deg, rgba(79, 156, 249, 0.08) 0%, transparent 100%);
+            border-radius: var(--radius-xl);
+            border: 1px solid rgba(79, 156, 249, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(
+                transparent 0deg,
+                rgba(79, 156, 249, 0.03) 90deg,
+                transparent 180deg,
+                rgba(139, 92, 246, 0.03) 270deg,
+                transparent 360deg
+            );
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            to { transform: rotate(360deg); }
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo {
+            font-size: 3rem;
+            font-weight: 900;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+            letter-spacing: -1px;
+        }
+
+        .logo span {
+            display: inline-block;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .tagline {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+
+        .badges {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        .badge-success {
+            background: var(--success-glow);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-purple {
+            background: var(--purple-glow);
+            color: var(--purple);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .badge-warning {
+            background: var(--warning-glow);
+            color: var(--warning);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .badge-accent {
+            background: var(--accent-glow);
+            color: var(--accent);
+            border: 1px solid rgba(79, 156, 249, 0.3);
+        }
+
+        /* ═══ Stats Bar ═══ */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            text-align: center;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-primary);
+        }
+
+        .stat-box:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--border-hover);
+        }
+
+        .stat-icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+
+        /* ═══ Main Grid ═══ */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ═══ Card ═══ */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            border-color: var(--border-hover);
+        }
+
+        .card-header {
+            padding: 18px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255,255,255,0.02);
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title i {
+            color: var(--accent);
+        }
+
+        .card-body {
+            padding: 24px;
+        }
+
+        /* ═══ Form ═══ */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            transition: var(--transition);
+            outline: none;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .form-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238899aa' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L2 5h12z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            cursor: pointer;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 120px;
+            gap: 12px;
+        }
+
+        /* ═══ Button ═══ */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+            letter-spacing: 0.3px;
+        }
+
+        .btn-primary {
+            background: var(--gradient-primary);
+            color: white;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(79, 156, 249, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(79, 156, 249, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-stop {
+            background: var(--gradient-danger);
+            color: white;
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .btn-stop:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            font-size: 0.8rem;
+        }
+
+        .btn-ghost:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border-color: var(--border-hover);
+        }
+
+        /* ═══ Sessions List ═══ */
+        .sessions-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .session-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .session-card:hover {
+            border-color: var(--accent);
+            background: var(--bg-hover);
+        }
+
+        .session-card.active {
+            border-color: var(--success);
+            background: var(--success-glow);
+        }
+
+        .session-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .session-name {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--text-primary);
+        }
+
+        .session-status {
+            font-size: 0.75rem;
+            padding: 3px 10px;
+            border-radius: 50px;
+            font-weight: 600;
+        }
+
+        .status-connected {
+            background: var(--success-glow);
+            color: var(--success);
+        }
+
+        .status-connecting {
+            background: var(--warning-glow);
+            color: var(--warning);
+        }
+
+        .status-disconnected {
+            background: var(--danger-glow);
+            color: var(--danger);
+        }
+
+        .session-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .session-detail {
+            font-size: 0.8rem;
+        }
+
+        .session-detail span {
+            color: var(--text-muted);
+            display: block;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+
+        .session-detail strong {
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 12px;
+            opacity: 0.3;
+        }
+
+        /* ═══ Console ═══ */
+        .console-wrapper {
+            background: #000;
+            border-radius: var(--radius-md);
+            border: 1px solid #1a1a2e;
+            overflow: hidden;
+        }
+
+        .console-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background: #0d1117;
+            border-bottom: 1px solid #1a1a2e;
+        }
+
+        .console-header span {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .console-header .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse-dot 2s infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .console-body {
+            height: 350px;
+            overflow-y: auto;
+            padding: 12px 16px;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.8;
+        }
+
+        .console-body::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .console-body::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .console-body::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .log-entry {
+            margin-bottom: 2px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            word-break: break-word;
+        }
+
+        .log-info { color: #8899aa; }
+        .log-success { color: #10b981; }
+        .log-warn { color: #f59e0b; }
+        .log-error { color: #ef4444; }
+        .log-cleanup { color: #8b5cf6; }
+        .log-chat { color: #4fc3f7; }
+        .log-system { color: #e8edf4; font-weight: 600; }
+
+        .console-input-wrapper {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #0d1117;
+            border-top: 1px solid #1a1a2e;
+        }
+
+        .console-input {
+            flex: 1;
+            padding: 10px 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .console-input:focus {
+            border-color: var(--accent);
+        }
+
+        .btn-send {
+            padding: 10px 16px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-send:hover {
+            background: var(--accent-hover);
+        }
+
+        /* ═══ Stats for Session ═══ */
+        .session-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .session-stat {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            text-align: center;
+        }
+
+        .session-stat-value {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        .session-stat-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        .health-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+
+        .health-bar-fill {
+            height: 100%;
+            background: var(--gradient-success);
+            transition: width 0.5s ease;
+        }
+
+        /* ═══ Cleanup Notification ═══ */
+        .cleanup-notification {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--purple-glow);
+            border: 1px solid rgba(139, 92, 246, 0.4);
+            color: var(--purple);
+            padding: 14px 20px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+            max-width: 350px;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* ═══ Toast ═══ */
+        .toast {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            padding: 14px 20px;
+            border-radius: var(--radius-md);
+            font-size: 0.9rem;
+            font-weight: 600;
+            z-index: 1001;
+            animation: toastIn 0.3s ease, toastOut 0.3s ease 3s forwards;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .toast-success {
+            background: var(--success-glow);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: var(--success);
+        }
+
+        .toast-error {
+            background: var(--danger-glow);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: var(--danger);
+        }
+
+        @keyframes toastIn {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes toastOut {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(-100%); opacity: 0; }
+        }
+
+        /* ═══ Footer ═══ */
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 40px;
+        }
+
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* ═══ Responsive ═══ */
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px;
+            }
+
+            .logo {
+                font-size: 2rem;
+            }
+
+            .stats-bar {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .card-body {
+                padding: 16px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .session-stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* ═══ Scrollbar ═══ */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--border-hover);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo"><span>🔷</span> KeepAliveMC</div>
+                <p class="tagline">Free 24/7 Minecraft Bot Service • Auto-Cleanup Enabled</p>
+                <div class="badges">
+                    <div class="badge badge-success">
+                        <i class="fas fa-unlock"></i> No Password Required
+                    </div>
+                    <div class="badge badge-purple">
+                        <i class="fas fa-broom"></i> Auto-Cleanup Active
+                    </div>
+                    <div class="badge badge-accent">
+                        <i class="fas fa-cube"></i> 1.8 → 1.21.4
+                    </div>
+                    <div class="badge badge-warning">
+                        <i class="fas fa-infinity"></i> 24h Sessions
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-box">
+                <div class="stat-icon">🤖</div>
+                <div class="stat-value" id="statSessions">0</div>
+                <div class="stat-label">Active Bots</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-icon">🚀</div>
+                <div class="stat-value" id="statSpawns">0</div>
+                <div class="stat-label">Total Launched</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-icon">🧹</div>
+                <div class="stat-value" id="statCleanups">0</div>
+                <div class="stat-label">Auto-Cleaned</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-icon">💾</div>
+                <div class="stat-value" id="statMemory">0</div>
+                <div class="stat-label">Memory (MB)</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-grid">
+            <!-- Left Column: New Session -->
+            <div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fas fa-plus-circle"></i>
+                            New Session
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <form id="spawnForm">
+                            <div class="form-group">
+                                <label class="form-label" for="host">
+                                    <i class="fas fa-server"></i> Server Address
+                                </label>
+                                <input type="text" id="host" class="form-input" 
+                                       placeholder="mc.hypixel.net or 192.168.1.1" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Port & Version</label>
+                                <div class="form-row">
+                                    <input type="number" id="port" class="form-input" 
+                                           placeholder="25565" value="25565" required>
+                                    <select id="version" class="form-select" required>
+                                        <option value="">Version</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="username">
+                                    <i class="fas fa-user"></i> Bot Username (optional)
+                                </label>
+                                <input type="text" id="username" class="form-input" 
+                                       placeholder="Auto-generated if empty" maxlength="16">
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" id="spawnBtn">
+                                <i class="fas fa-rocket"></i> Launch Bot
+                            </button>
+                        </form>
+
+                        <div style="margin-top: 20px; padding: 14px; background: var(--purple-glow); border-radius: var(--radius-md); border: 1px solid rgba(139, 92, 246, 0.2);">
+                            <div style="font-size: 0.8rem; color: var(--purple); display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-broom"></i>
+                                <strong>Smart Auto-Cleanup</strong>
+                            </div>
+                            <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 6px;">
+                                If the Minecraft server goes offline, your bot is automatically stopped and removed from the system to save resources. No manual action needed!
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Sessions & Console -->
+            <div>
+                <!-- Sessions -->
+                <div class="card" style="margin-bottom: 24px;">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fas fa-list"></i>
+                            Active Sessions
+                            <span id="sessionCountBadge" class="badge badge-accent" style="margin-left: auto;">0</span>
+                        </div>
+                        <button class="btn btn-ghost" onclick="refreshSessions()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="sessions-container" id="sessionsList">
+                            <div class="empty-state">
+                                <i class="fas fa-robot"></i>
+                                <p>No active sessions. Launch a bot to get started!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Console -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fas fa-terminal"></i>
+                            Live Console
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-ghost" onclick="clearConsole()">
+                                <i class="fas fa-trash"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                    <div class="console-wrapper">
+                        <div class="console-header">
+                            <span><span class="dot"></span> Connected</span>
+                            <span id="consoleTarget">System</span>
+                        </div>
+                        <div class="console-body" id="consoleBody"></div>
+                        <div class="console-input-wrapper">
+                            <input type="text" id="consoleInput" class="console-input" 
+                                   placeholder="Type a command for the selected bot..." 
+                                   onkeypress="if(event.key==='Enter') sendCommand()">
+                            <button class="btn-send" onclick="sendCommand()">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Selected Session Stats -->
+                    <div class="card-body" id="sessionStatsPanel" style="display: none; border-top: 1px solid var(--border);">
+                        <div class="card-title" style="margin-bottom: 12px; font-size: 0.9rem;">
+                            <i class="fas fa-chart-line"></i>
+                            Session Stats
+                        </div>
+                        <div class="session-stats-grid">
+                            <div class="session-stat">
+                                <div class="session-stat-value" id="botHealth">--</div>
+                                <div class="session-stat-label">Health</div>
+                                <div class="health-bar">
+                                    <div class="health-bar-fill" id="healthBar" style="width: 100%;"></div>
+                                </div>
+                            </div>
+                            <div class="session-stat">
+                                <div class="session-stat-value" id="botFood">--</div>
+                                <div class="session-stat-label">Food</div>
+                                <div class="health-bar">
+                                    <div class="health-bar-fill" id="foodBar" style="width: 100%; background: var(--gradient-primary);"></div>
+                                </div>
+                            </div>
+                            <div class="session-stat">
+                                <div class="session-stat-value" id="botUptime">--</div>
+                                <div class="session-stat-label">Uptime</div>
+                            </div>
+                            <div class="session-stat">
+                                <div class="session-stat-value" id="botPos">--</div>
+                                <div class="session-stat-label">Position</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>
+                <strong>KeepAliveMC v2.0</strong> — Free • Open Source • Auto-Cleanup<br>
+                Made with 💜 for the Minecraft community | 
+                <a href="https://github.com/mohamadelfiali/KeepAliveMC" target="_blank">GitHub</a>
+            </p>
+        </footer>
+    </div>
+
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <script>
+        // ═══════════════ Configuration ═══════════════
+        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3000'
+            : 'https://keepalivemc-production.up.railway.app';
+
+        const socket = io(API_BASE, {
+            transports: ['websocket', 'polling']
+        });
+
+        // ═══════════════ State ═══════════════
+        let currentSessionId = null;
+        let sessions = [];
+        let stats = { totalCleanups: 0 };
+
+        // ═══════════════ Initialize ═══════════════
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadVersions();
+            await refreshSessions();
+            await refreshStats();
+            
+            // Auto-refresh every 15 seconds
+            setInterval(refreshSessions, 15000);
+            setInterval(refreshStats, 15000);
+        });
+
+        // ═══════════════ Load Versions ═══════════════
+        async function loadVersions() {
+            try {
+                const res = await fetch(`${API_BASE}/api/versions`);
+                const versions = await res.json();
+                
+                const select = document.getElementById('version');
+                select.innerHTML = '<option value="">Version</option>';
+                
+                versions.forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v;
+                    opt.textContent = v;
+                    select.appendChild(opt);
+                });
+            } catch (err) {
+                console.error('Failed to load versions:', err);
+            }
+        }
+
+        // ═══════════════ Socket Events ═══════════════
+        socket.on('connect', () => {
+            addLog('Connected to KeepAliveMC server', 'success');
+        });
+
+        socket.on('disconnect', () => {
+            addLog('Disconnected from server', 'error');
+        });
+
+        socket.on('server-log', (data) => {
+            addLog(data.message, data.type === 'cleanup' ? 'cleanup' : data.type);
+        });
+
+        socket.on('session-removed', (data) => {
+            showCleanupNotification(data.message);
+            refreshSessions();
+            refreshStats();
+        });
+
+        socket.on('bot-chat', (data) => {
+            if (data.sessionId === currentSessionId || !currentSessionId) {
+                addLog(`[${data.username || 'Bot'}] ${data.message}`, 'chat');
+            }
+        });
+
+        socket.on('bot-status', (data) => {
+            if (data.sessionId === currentSessionId) {
+                addLog(data.message, data.status === 'connected' ? 'success' : 'warn');
+            }
+            refreshSessions();
+        });
+
+        socket.on('session-stats', (data) => {
+            if (data.sessionId === currentSessionId) {
+                updateSessionStats(data);
+            }
+        });
+
+        socket.on('stats-update', (data) => {
+            document.getElementById('statSessions').textContent = data.activeSessions || 0;
+            document.getElementById('statSpawns').textContent = data.totalSpawns || 0;
+            document.getElementById('statCleanups').textContent = data.totalCleanups || 0;
+            document.getElementById('statMemory').textContent = data.memoryUsage || 0;
+        });
+
+        // ═══════════════ Spawn Form ═══════════════
+        document.getElementById('spawnForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const host = document.getElementById('host').value.trim();
+            const port = document.getElementById('port').value;
+            const version = document.getElementById('version').value;
+            const username = document.getElementById('username').value.trim();
+
+            if (!host || !port || !version) {
+                showToast('Please fill all required fields', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('spawnBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Launching...';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/spawn`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ host, port: parseInt(port), version, username })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    showToast(`Bot launched! Session: ${data.sessionId}`, 'success');
+                    addLog(`🚀 New bot spawned → ${host}:${port} (${version})`, 'success');
+                    addLog(`🧹 Auto-cleanup enabled for this session`, 'cleanup');
+                    currentSessionId = data.sessionId;
+                    document.getElementById('consoleTarget').textContent = data.username;
+                    refreshSessions();
+                } else {
+                    showToast(data.error || 'Failed to spawn bot', 'error');
+                    addLog(`❌ Spawn failed: ${data.error}`, 'error');
+                }
+            } catch (err) {
+                showToast('Connection error. Is the server running?', 'error');
+                addLog(`❌ Connection error: ${err.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-rocket"></i> Launch Bot';
+            }
+        });
+
+        // ═══════════════ Sessions ═══════════════
+        async function refreshSessions() {
+            try {
+                const res = await fetch(`${API_BASE}/api/sessions`);
+                sessions = await res.json();
+                renderSessions();
+            } catch (err) {
+                console.error('Failed to load sessions:', err);
+            }
+        }
+
+        function renderSessions() {
+            const container = document.getElementById('sessionsList');
+            const badge = document.getElementById('sessionCountBadge');
+            
+            badge.textContent = sessions.length;
+
+            if (sessions.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-robot"></i>
+                        <p>No active sessions. Launch a bot to get started!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = sessions.map(s => `
+                <div class="session-card ${s.id === currentSessionId ? 'active' : ''}" 
+                     onclick="selectSession('${s.id}', '${s.username}')">
+                    <div class="session-top">
+                        <div class="session-name">${s.username}</div>
+                        <span class="session-status status-${s.state}">
+                            ${s.state === 'spawned' ? '🟢 Online' : 
+                              s.state === 'connected' ? '🟢 Connected' : 
+                              s.state === 'connecting' ? '🟡 Connecting' : 
+                              s.state === 'disconnected' ? '🔴 Disconnected' : '🟡 ' + s.state}
+                        </span>
+                    </div>
+                    <div class="session-details">
+                        <div class="session-detail">
+                            <span>Server</span>
+                            <strong>${s.host}</strong>
+                        </div>
+                        <div class="session-detail">
+                            <span>Version</span>
+                            <strong>${s.version}</strong>
+                        </div>
+                        <div class="session-detail">
+                            <span>Uptime</span>
+                            <strong>${s.uptimeFormatted}</strong>
+                        </div>
+                        <div class="session-detail">
+                            <span>Auto-Cleanup</span>
+                            <strong style="color: var(--success);">✓ Active</strong>
+                        </div>
+                    </div>
+                    ${s.isOwner ? `
+                        <button class="btn btn-stop" onclick="event.stopPropagation(); stopSession('${s.id}')">
+                            <i class="fas fa-stop"></i> Stop
+                        </button>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        function selectSession(sessionId, username) {
+            currentSessionId = sessionId;
+            document.getElementById('consoleTarget').textContent = username;
+            document.getElementById('sessionStatsPanel').style.display = 'block';
+            renderSessions();
+            addLog(`📌 Selected session: ${username}`, 'system');
+        }
+
+        async function stopSession(sessionId) {
+            try {
+                const res = await fetch(`${API_BASE}/api/stop/${sessionId}`, {
+                    method: 'POST'
+                });
+                
+                if (res.ok) {
+                    showToast('Session stopped', 'success');
+                    if (currentSessionId === sessionId) {
+                        currentSessionId = null;
+                        document.getElementById('sessionStatsPanel').style.display = 'none';
+                        document.getElementById('consoleTarget').textContent = 'System';
+                    }
+                    refreshSessions();
+                    refreshStats();
+                }
+            } catch (err) {
+                showToast('Failed to stop session', 'error');
+            }
+        }
+
+        async function refreshStats() {
+            try {
+                const res = await fetch(`${API_BASE}/api/stats`);
+                const data = await res.json();
+                document.getElementById('statSessions').textContent = data.activeSessions || 0;
+                document.getElementById('statSpawns').textContent = data.totalSpawns || 0;
+                document.getElementById('statCleanups').textContent = data.totalCleanups || 0;
+                document.getElementById('statMemory').textContent = data.memoryUsage || 0;
+            } catch (err) {
+                console.error('Failed to load stats:', err);
+            }
+        }
+
+        // ═══════════════ Console ═══════════════
+        function addLog(message, type = 'info') {
+            const consoleBody = document.getElementById('consoleBody');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            consoleBody.appendChild(entry);
+            consoleBody.scrollTop = consoleBody.scrollHeight;
+
+            // Keep max 200 entries
+            while (consoleBody.children.length > 200) {
+                consoleBody.removeChild(consoleBody.firstChild);
+            }
+        }
+
+        function clearConsole() {
+            document.getElementById('consoleBody').innerHTML = '';
+        }
+
+        function sendCommand() {
+            const input = document.getElementById('consoleInput');
+            const command = input.value.trim();
+            
+            if (!command) return;
+
+            if (!currentSessionId) {
+                showToast('Select a session first!', 'error');
+                return;
+            }
+
+            socket.emit('send-command', {
+                sessionId: currentSessionId,
+                command: command
+            });
+
+            addLog(`> ${command}`, 'system');
+            input.value = '';
+        }
+
+        // ═══════════════ Stats Display ═══════════════
+        function updateSessionStats(data) {
+            if (data.health !== undefined) {
+                document.getElementById('botHealth').textContent = `${data.health}/20`;
+                document.getElementById('healthBar').style.width = `${(data.health / 20) * 100}%`;
+            }
+            if (data.food !== undefined) {
+                document.getElementById('botFood').textContent = `${data.food}/20`;
+                document.getElementById('foodBar').style.width = `${(data.food / 20) * 100}%`;
+            }
+            if (data.uptime !== undefined) {
+                document.getElementById('botUptime').textContent = formatUptime(data.uptime);
+            }
+            if (data.position) {
+                document.getElementById('botPos').textContent = 
+                    `${data.position.x}, ${data.position.y}, ${data.position.z}`;
+            }
+        }
+
+        function formatUptime(ms) {
+            const seconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            
+            if (hours > 0) return `${hours}h ${minutes % 60}m`;
+            if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+            return `${seconds}s`;
+        }
+
+        // ═══════════════ Notifications ═══════════════
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+                ${message}
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3500);
+        }
+
+        function showCleanupNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'cleanup-notification';
+            notification.innerHTML = `
+                <i class="fas fa-broom"></i>
+                <span>${message}</span>
+            `;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 6000);
+        }
+
+        // ═══════════════ Initial Logs ═══════════════
+        addLog('🔷 KeepAliveMC v2.0 loaded', 'system');
+        addLog('🔓 No password required - Free for everyone', 'success');
+        addLog('🧹 Auto-cleanup system: Active', 'cleanup');
+        addLog('📡 Enter server details and click Launch Bot', 'info');
+    </script>
+</body>
+</html>
